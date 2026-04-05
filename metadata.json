@@ -1,0 +1,5 @@
+{
+  "name": "Combined Competitors Extractors",
+  "description": "One Google AI Studio dashboard for the Foreplay, AdPlexity, and Meta extractor apps.",
+  "requestFramePermissions": []
+}

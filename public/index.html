@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Combined Extractors Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Google AI Studio Friendly</p>
+          <h1>Combined Competitors Extractors</h1>
+          <p class="lede">
+            One slim dashboard for Foreplay, AdPlexity, and Meta. Each extractor keeps its own queue, checkpoints,
+            logs, Airtable writes, and stop controls.
+          </p>
+        </div>
+        <div class="hero-card">
+          <div class="stat-label">Active Extractor</div>
+          <div class="stat-value" id="active-extractor-label">Loading...</div>
+          <div class="stat-subtle" id="runtime-badge">Waiting for state...</div>
+        </div>
+      </section>
+
+      <section class="panel tabs-panel">
+        <div class="tab-list" id="tab-list"></div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Controls</h2>
+          <p class="panel-copy" id="extractor-description">Loading extractor details...</p>
+
+          <section class="extractor-controls" data-extractor="foreplay">
+            <label class="field">
+              <span>Lookback months</span>
+              <input id="foreplay-months" type="number" min="1" max="24" value="3" />
+            </label>
+            <label class="field">
+              <span>Manual Foreplay brand IDs</span>
+              <textarea
+                id="foreplay-manual-brand-ids"
+                rows="6"
+                placeholder="Optional. If filled, only these IDs will be seeded."
+              ></textarea>
+            </label>
+          </section>
+
+          <section class="extractor-controls" data-extractor="adplexity" hidden>
+            <label class="field">
+              <span>Manual AdPlexity report IDs</span>
+              <textarea
+                id="adplexity-manual-report-ids"
+                rows="8"
+                placeholder="Optional. One report ID per line."
+              ></textarea>
+            </label>
+          </section>
+
+          <section class="extractor-controls" data-extractor="meta" hidden>
+            <label class="field">
+              <span>Manual Meta page IDs</span>
+              <textarea
+                id="meta-manual-page-ids"
+                rows="5"
+                placeholder="Optional. One page ID per line."
+              ></textarea>
+            </label>
+            <label class="field">
+              <span>Search query</span>
+              <input id="meta-search-query" type="text" placeholder="Optional keyword filter" />
+            </label>
+            <div class="split-fields">
+              <label class="field">
+                <span>Min days</span>
+                <input id="meta-min-days" type="number" min="0" max="365" value="30" />
+              </label>
+              <label class="field">
+                <span>Media</span>
+                <select id="meta-media">
+                  <option value="both" selected>Both</option>
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Max ads per page</span>
+                <input id="meta-max-ads-per-page" type="number" min="1" max="500" value="100" />
+              </label>
+            </div>
+          </section>
+
+          <div class="actions">
+            <button id="seed-btn" class="primary">Seed + Run</button>
+            <button id="run-btn">Run Queue</button>
+            <button id="stop-btn" class="danger">Stop</button>
+            <button id="refresh-btn">Refresh</button>
+            <button id="clear-btn">Clear Checkpoints</button>
+          </div>
+          <div class="note" id="config-note">Loading config...</div>
+        </article>
+
+        <article class="panel">
+          <h2>Queue Snapshot</h2>
+          <div class="stats">
+            <div class="tile">
+              <span>Total</span>
+              <strong id="total-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Pending</span>
+              <strong id="pending-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Running</span>
+              <strong id="running-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Done</span>
+              <strong id="done-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Failed</span>
+              <strong id="failed-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Stale</span>
+              <strong id="stale-count">0</strong>
+            </div>
+          </div>
+          <div class="snapshot-meta">
+            <div class="meta-row">
+              <span>Current checkpoint</span>
+              <strong id="current-checkpoint">None</strong>
+            </div>
+            <div class="meta-row">
+              <span>Generated</span>
+              <strong id="generated-at">-</strong>
+            </div>
+          </div>
+          <pre id="queue-json" class="queue-json">Waiting for queue state...</pre>
+        </article>
+      </section>
+
+      <section class="grid lower-grid">
+        <article class="panel wide">
+          <div class="panel-header">
+            <h2>Recent Checkpoints</h2>
+            <span class="subtle" id="checkpoint-count">0 rows</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="checkpoints-head"></thead>
+              <tbody id="checkpoints-body">
+                <tr>
+                  <td class="empty">No checkpoints yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>Live Logs</h2>
+          <pre id="logs" class="logs">Waiting for state...</pre>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
