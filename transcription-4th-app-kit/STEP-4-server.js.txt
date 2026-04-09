@@ -1,0 +1,147 @@
+Step 4 for combined-extractors-dashboard/server.js
+
+1. Add this import near the top:
+
+import { config as transcriptionConfig } from "./src/extractors/transcription/config.js";
+
+2. Add this helper under the `port` constant:
+
+function serializeScriptValue(value) {
+  return JSON.stringify(value).replaceAll("</", "<\\/");
+}
+
+3. Paste these transcription-only routes after the existing `run-chunk` route block:
+
+if (
+  extractorRoute &&
+  extractorRoute.extractorId === "transcription" &&
+  req.method === "POST" &&
+  extractorRoute.action === "retry-failed"
+) {
+  if (extractor.runtime.state.running) {
+    sendJson(res, 409, {
+      error: "Stop the current run before retrying failed rows.",
+      state: await extractor.getState()
+    });
+    return;
+  }
+
+  const summary = await extractor.retryFailed();
+  sendJson(res, 200, {
+    ok: true,
+    summary,
+    state: await extractor.getState()
+  });
+  return;
+}
+
+if (
+  extractorRoute &&
+  extractorRoute.extractorId === "transcription" &&
+  req.method === "POST" &&
+  extractorRoute.action === "claim-browser-task"
+) {
+  if (extractor.runtime.state.stopRequested && !extractor.runtime.state.running) {
+    extractor.runtime.state.stopRequested = false;
+  }
+
+  sendJson(res, 200, await extractor.claimBrowserTask());
+  return;
+}
+
+if (
+  extractorRoute &&
+  extractorRoute.extractorId === "transcription" &&
+  req.method === "POST" &&
+  extractorRoute.action === "complete-browser-task"
+) {
+  const body = await readJsonBody(req);
+  sendJson(
+    res,
+    200,
+    await extractor.completeBrowserTask({
+      recordId: body?.recordId,
+      sourceAdRecordId: body?.sourceAdRecordId,
+      transcript: body?.transcript,
+      bytes: body?.bytes
+    })
+  );
+  return;
+}
+
+if (
+  extractorRoute &&
+  extractorRoute.extractorId === "transcription" &&
+  req.method === "POST" &&
+  extractorRoute.action === "fail-browser-task"
+) {
+  const body = await readJsonBody(req);
+  sendJson(
+    res,
+    200,
+    await extractor.failBrowserTask({
+      recordId: body?.recordId,
+      key: body?.key,
+      error: body?.error,
+      fatal: Boolean(body?.fatal)
+    })
+  );
+  return;
+}
+
+if (
+  extractorRoute &&
+  extractorRoute.extractorId === "transcription" &&
+  req.method === "POST" &&
+  extractorRoute.action === "finish-browser-run"
+) {
+  const body = await readJsonBody(req);
+  sendJson(
+    res,
+    200,
+    await extractor.finishBrowserRun({
+      processed: body?.processed,
+      done: body?.done,
+      failed: body?.failed,
+      reason: body?.reason
+    })
+  );
+  return;
+}
+
+4. Replace the current `/` route:
+
+if (req.method === "GET" && url.pathname === "/") {
+  await sendStaticFile(res, path.join(publicDir, "index.html"), "text/html; charset=utf-8");
+  return;
+}
+
+with this injected version:
+
+if (req.method === "GET" && url.pathname === "/") {
+  const body = await fs.readFile(path.join(publicDir, "index.html"), "utf8");
+  const injected = body.replace(
+    "</body>",
+    `<script>window.__APP_CONFIG__=${serializeScriptValue({
+      transcription: {
+        browserGemini: {
+          apiKey: transcriptionConfig.gemini.apiKey,
+          apiUrl: transcriptionConfig.gemini.apiUrl,
+          model: transcriptionConfig.gemini.model,
+          imageModel: transcriptionConfig.gemini.imageModel,
+          prompt: transcriptionConfig.gemini.prompt,
+          imagePrompt: transcriptionConfig.gemini.imagePrompt,
+          language: transcriptionConfig.gemini.language,
+          maxOutputTokens: transcriptionConfig.gemini.maxOutputTokens,
+          temperature: transcriptionConfig.gemini.temperature,
+          timeoutMs: transcriptionConfig.gemini.timeoutMs,
+          maxInlineBytes: transcriptionConfig.runtime.maxInlineBytes
+        }
+      }
+    })};</script></body>`
+  );
+
+  res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+  res.end(injected);
+  return;
+}
