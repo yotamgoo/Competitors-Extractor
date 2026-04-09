@@ -30,7 +30,10 @@ function createTranscriptionExtractor() {
           imageModel: transcriptionConfig.gemini.imageModel
         },
         runtime: state.runtime,
-        queue: state.queue
+        queue: {
+          ...state.queue,
+          checkpoints: state.queue.records || []
+        }
       };
     },
     async seed(payload) {

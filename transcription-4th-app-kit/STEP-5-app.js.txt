@@ -1,0 +1,298 @@
+Step 5B for combined-extractors-dashboard/public/app.js
+
+This is the frontend wiring step. Do it in this order.
+
+1. Add these constants near the top:
+
+const retryButton = document.querySelector("#retry-btn");
+const browserGemini = window.__APP_CONFIG__?.transcription?.browserGemini || {};
+
+2. Add `transcription` to `forms`:
+
+  transcription: {}
+
+So the object ends with:
+
+  meta: {
+    manualPageIds: document.querySelector("#meta-manual-page-ids"),
+    searchQuery: document.querySelector("#meta-search-query"),
+    minDays: document.querySelector("#meta-min-days"),
+    media: document.querySelector("#meta-media"),
+    maxAdsPerPage: document.querySelector("#meta-max-ads-per-page")
+  },
+  transcription: {}
+
+3. Add `retry: false` to the pending object in `getUiState()`.
+
+Change:
+
+        clear: false
+
+to:
+
+        clear: false,
+        retry: false
+
+4. Add `transcription` to `extractorMeta`:
+
+  transcription: {
+    emptyRowText: "No transcription queue rows yet."
+  }
+
+5. Add this `transcription` entry to `checkpointColumns`:
+
+  transcription: [
+    { label: "Status", render: (item) => statusPill(item.status) },
+    { label: "Queue Record", render: (item) => cell(item.recordId || "", "mono") },
+    { label: "Ad Id", render: (item) => cell(item.adId || "", "mono") },
+    { label: "Ads Ref", render: (item) => cell(item.adsRecordId || item.linkedAdRecordId || "", "mono") },
+    { label: "Attempts", render: (item) => cell(item.attemptCount ?? 0) },
+    { label: "Updated", render: (item) => cell(item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "-") },
+    { label: "Last Error", render: (item) => errorCell(item.error || item.lastError || "") }
+  ]
+
+6. Add these helper functions from the standalone transcription app before `setPending(...)`:
+
+- `inferMimeType`
+- `toBase64`
+- `extractGeminiText`
+- `isEnvironmentFailure`
+- `transcribeTaskInBrowser`
+
+Copy them from:
+
+`transcription-4th-app-kit/reference/public/app.js`
+
+Important:
+
+- keep `browserGemini` reading from:
+  `window.__APP_CONFIG__?.transcription?.browserGemini || {}`
+- keep image model fallback:
+  `browserGemini.imageModel || "gemini-2.0-flash"`
+- keep video model fallback:
+  `browserGemini.model || "gemini-2.5-flash"`
+
+7. Update `shouldAutoRunAfterSeed(id)` to handle transcription:
+
+Add this at the top of the function:
+
+  if (id === "transcription") {
+    return false;
+  }
+
+8. Update `seedButtonLabel(id)`:
+
+Add this at the top:
+
+  if (id === "transcription") {
+    return "Seed Queue";
+  }
+
+9. Update `buildSeedPayload(id)`:
+
+Before the final `return`, add:
+
+  if (id === "transcription") {
+    return {};
+  }
+
+10. Update `buildConfigNote(id, state)`:
+
+Add this block before the final Meta bits:
+
+  if (id === "transcription") {
+    const bits = [];
+
+    if (!state.config.airtableConfigured) {
+      bits.push("Missing Airtable credentials.");
+    }
+    if (!state.config.geminiConfigured) {
+      bits.push("Missing Gemini API key.");
+    } else if (state.config.geminiApiKeyName) {
+      bits.push(
+        `Gemini auth: ${state.config.geminiApiKeyName} from ${state.config.geminiApiKeySource || "runtime secret"}.`
+      );
+    }
+
+    bits.push(
+      `Seed source: ${state.config.adsTable}${state.config.adsView ? ` (view: ${state.config.adsView})` : ""}. Attachment field: ${state.config.adsAttachmentField}.`
+    );
+    bits.push(
+      `Queue table: ${state.config.queueTable}${state.config.queueView ? ` (view: ${state.config.queueView})` : ""}.`
+    );
+    bits.push(`Queue transcript field: ${state.config.queueTranscriptField || "disabled"}.`);
+    bits.push(`Output: writes transcript back to ${state.config.adsTable}.${state.config.adsTranscriptField}.`);
+    bits.push(
+      `Model: ${state.config.model}. Image model: ${state.config.imageModel}. Inline limit: ${state.config.maxInlineBytes} bytes.`
+    );
+    bits.push(
+      `Chunk budget: ${Math.round(state.config.chunkMaxMs / 1000)}s or ${state.config.chunkMaxRecords} rows. Retry limit: ${state.config.retryLimit}.`
+    );
+
+    return bits.join(" ");
+  }
+
+11. Update `renderSnapshot(state)` so the last tile works for transcription too:
+
+Change:
+
+  text("#stale-count", state?.queue?.staleRunning ?? 0);
+
+to:
+
+  text(
+    "#stale-count",
+    activeExtractorId === "transcription"
+      ? state?.queue?.retryableFailed ?? 0
+      : state?.queue?.staleRunning ?? 0
+  );
+
+12. Update `renderActionButtons()`:
+
+After the existing `clearButton.hidden` line, add:
+
+  retryButton.hidden = !manifest?.supportsRetryFailed;
+  retryButton.disabled = Boolean(anyPending || isRunning);
+
+13. Add this new helper function before `runLoop(id)`:
+
+async function retryFailedExtractor(id) {
+  const ui = getUiState(id);
+  setPending(id, "retry", true);
+
+  try {
+    const payload = await request(`/api/extractors/${id}/retry-failed`, {
+      method: "POST"
+    });
+    storeState(id, payload.state);
+    return payload;
+  } finally {
+    setPending(id, "retry", false);
+  }
+}
+
+14. Add this new helper function before `runLoop(id)`:
+
+async function runTranscriptionLoop(id) {
+  const ui = getUiState(id);
+  if (ui.autoRun) {
+    return;
+  }
+
+  ui.autoRun = true;
+  setPending(id, "run", true);
+  renderCurrentView();
+
+  let processed = 0;
+  let done = 0;
+  let failed = 0;
+  let reason = "queue-empty";
+
+  try {
+    while (ui.autoRun) {
+      const payload = await request(`/api/extractors/${id}/claim-browser-task`, {
+        method: "POST"
+      });
+      storeState(id, payload.state);
+
+      if (!payload.task) {
+        reason = payload.reason || (ui.latestState?.runtime?.stopRequested ? "stop-requested" : "queue-empty");
+        break;
+      }
+
+      processed += 1;
+
+      try {
+        const result = await transcribeTaskInBrowser(payload.task);
+        const completePayload = await request(`/api/extractors/${id}/complete-browser-task`, {
+          method: "POST",
+          body: {
+            recordId: payload.task.recordId,
+            sourceAdRecordId: payload.task.sourceAdRecordId,
+            transcript: result.text,
+            bytes: result.bytes
+          }
+        });
+        storeState(id, completePayload.state);
+        done += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failed += 1;
+        const fatal = isEnvironmentFailure(message);
+        const failPayload = await request(`/api/extractors/${id}/fail-browser-task`, {
+          method: "POST",
+          body: {
+            recordId: payload.task.recordId,
+            key: payload.task.key,
+            error: message,
+            fatal
+          }
+        });
+        storeState(id, failPayload.state);
+        if (fatal) {
+          reason = "environment-error";
+          ui.autoRun = false;
+          break;
+        }
+      }
+
+      if (ui.latestState?.runtime?.stopRequested) {
+        reason = "stop-requested";
+        break;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  } finally {
+    const finishPayload = await request(`/api/extractors/${id}/finish-browser-run`, {
+      method: "POST",
+      body: {
+        processed,
+        done,
+        failed,
+        reason
+      }
+    }).catch(() => null);
+
+    if (finishPayload?.state) {
+      storeState(id, finishPayload.state);
+    }
+
+    ui.autoRun = false;
+    setPending(id, "run", false);
+    renderCurrentView();
+  }
+}
+
+15. Update `runLoop(id)`:
+
+At the top of the function, add:
+
+  if (id === "transcription") {
+    return runTranscriptionLoop(id);
+  }
+
+16. Add this button binding near the bottom:
+
+retryButton.addEventListener("click", () => {
+  retryFailedExtractor(activeExtractorId).catch(handleActionError);
+});
+
+17. Optional but recommended:
+
+In `initialize()`, after states load, make sure the first tab can be `transcription` if it comes back from the server. No extra code is needed if `/api/extractors` already includes it.
+
+18. Important correction to Step 3:
+
+In `src/extractors.js`, the transcription wrapper should return:
+
+queue: {
+  ...state.queue,
+  checkpoints: state.queue.records || []
+}
+
+not just:
+
+queue: state.queue
+
+Otherwise the combined app table will render empty for transcription.

@@ -1,0 +1,43 @@
+Step 5A for combined-extractors-dashboard/public/index.html
+
+1. In the hero lede, change:
+
+One slim dashboard for Foreplay, AdPlexity, and Meta.
+
+to:
+
+One slim dashboard for Foreplay, AdPlexity, Meta, and Transcription.
+
+2. In the actions block, add this button after Refresh:
+
+<button id="retry-btn">Retry Failed</button>
+
+So the actions row becomes:
+
+<div class="actions">
+  <button id="seed-btn" class="primary">Seed + Run</button>
+  <button id="run-btn">Run Queue</button>
+  <button id="stop-btn" class="danger">Stop</button>
+  <button id="refresh-btn">Refresh</button>
+  <button id="retry-btn">Retry Failed</button>
+  <button id="clear-btn">Clear Checkpoints</button>
+</div>
+
+3. Add this transcription controls section after the existing Meta section:
+
+<section class="extractor-controls" data-extractor="transcription" hidden>
+  <p class="panel-copy">
+    Seeds a `Transcriptions` queue from `Ads`, runs browser-side Gemini on `Ad File`, and writes the finished output
+    back into `Ads.Video Transcript`.
+  </p>
+</section>
+
+4. In the queue snapshot tiles, change the last tile label from:
+
+Stale
+
+to:
+
+Retryable / Stale
+
+This keeps the existing layout usable for transcription too.
