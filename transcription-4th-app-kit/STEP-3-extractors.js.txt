@@ -1,0 +1,74 @@
+Step 3 for combined-extractors-dashboard/src/extractors.js
+
+1. Add these imports near the top:
+
+import { config as transcriptionConfig } from "./extractors/transcription/config.js";
+import { createTranscriptionApp } from "./extractors/transcription/transcription-app.js";
+
+2. Paste this function after createMetaExtractor():
+
+function createTranscriptionExtractor() {
+  const descriptor = {
+    id: "transcription",
+    label: "Transcription",
+    description: "Seeds a Transcriptions queue from Ads, runs Gemini on ad files, and writes results back to Ads.Video Transcript.",
+    supportsClearCheckpoints: false,
+    supportsRetryFailed: true
+  };
+  const app = createTranscriptionApp();
+
+  return {
+    ...descriptor,
+    runtime: app.runtime,
+    async getState() {
+      const state = await app.getState();
+
+      return {
+        extractor: descriptor,
+        config: {
+          ...state.config,
+          imageModel: transcriptionConfig.gemini.imageModel
+        },
+        runtime: state.runtime,
+        queue: state.queue
+      };
+    },
+    async seed(payload) {
+      return app.seed(payload);
+    },
+    async runChunk(payload) {
+      return app.runChunk(payload);
+    },
+    requestStop() {
+      app.requestStop();
+    },
+    async retryFailed() {
+      return app.retryFailed();
+    },
+    async claimBrowserTask() {
+      return app.claimBrowserTask();
+    },
+    async completeBrowserTask(payload) {
+      return app.completeBrowserTask(payload);
+    },
+    async failBrowserTask(payload) {
+      return app.failBrowserTask(payload);
+    },
+    async finishBrowserRun(payload) {
+      return app.finishBrowserRun(payload);
+    }
+  };
+}
+
+3. Update extractorMap:
+
+const extractorMap = {
+  foreplay: createForeplayExtractor(),
+  adplexity: createAdplexityExtractor(),
+  meta: createMetaExtractor(),
+  transcription: createTranscriptionExtractor()
+};
+
+4. Update extractorIds:
+
+const extractorIds = ["foreplay", "adplexity", "meta", "transcription"];
