@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Video Transcription Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Gemini + Airtable</p>
+          <h1>Video Transcription Dashboard</h1>
+          <p class="lede">
+            Seeds a `Transcriptions` queue from `Ads`, transcribes video ads, describes image ads in marketer style,
+            and writes the finished output back into `Ads.Video Transcript`.
+          </p>
+        </div>
+        <div class="hero-card">
+          <div class="stat-label">Runtime</div>
+          <div class="stat-value" id="runtime-title">Loading...</div>
+          <div class="stat-subtle" id="runtime-badge">Waiting for state...</div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Controls</h2>
+          <p class="panel-copy">
+            `Seed Queue` scans `Ads` for rows with files and no finished transcript, creates missing queue rows in
+            `Transcriptions`, and can auto-fill the `Ad` linked record field if you configure it.
+          </p>
+
+          <div class="actions">
+            <button id="seed-btn" class="primary">Seed Queue</button>
+            <button id="run-btn">Run Queue</button>
+            <button id="stop-btn" class="danger">Stop</button>
+            <button id="refresh-btn">Refresh</button>
+            <button id="retry-btn">Retry Failed</button>
+          </div>
+
+          <div class="note" id="config-note">Loading config...</div>
+        </article>
+
+        <article class="panel">
+          <h2>Queue Snapshot</h2>
+          <div class="stats">
+            <div class="tile">
+              <span>Total</span>
+              <strong id="total-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Pending</span>
+              <strong id="pending-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Running</span>
+              <strong id="running-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Done</span>
+              <strong id="done-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Failed</span>
+              <strong id="failed-count">0</strong>
+            </div>
+            <div class="tile">
+              <span>Retryable</span>
+              <strong id="retryable-count">0</strong>
+            </div>
+          </div>
+          <div class="snapshot-meta">
+            <div class="meta-row">
+              <span>Current queue row</span>
+              <strong id="current-record">None</strong>
+            </div>
+            <div class="meta-row">
+              <span>Generated</span>
+              <strong id="generated-at">-</strong>
+            </div>
+          </div>
+          <pre id="queue-json" class="queue-json">Waiting for queue state...</pre>
+        </article>
+      </section>
+
+      <section class="grid lower-grid">
+        <article class="panel wide">
+          <div class="panel-header">
+            <h2>Queue Rows</h2>
+            <span class="subtle" id="row-count">0 rows</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Queue Record</th>
+                  <th>Ad Id</th>
+                  <th>Ads Ref</th>
+                  <th>Attempts</th>
+                  <th>Updated</th>
+                  <th>Last Error</th>
+                </tr>
+              </thead>
+              <tbody id="rows-body">
+                <tr>
+                  <td colspan="7" class="empty">No queue rows yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel">
+          <h2>Live Logs</h2>
+          <pre id="logs" class="logs">Waiting for state...</pre>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
